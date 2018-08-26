@@ -4,7 +4,8 @@ Collect data and compare it with the data for the 26th:
 <pre>
 python3 main.py -c 2018-08-26
 </pre>
-##Configuration
+
+## Configuration
 conf.json
 <pre>
 {
@@ -20,7 +21,8 @@ conf.json
   ]
 }
 </pre>
-##Arguments
+
+## Arguments
 main.py args START END<br>
 <b>-c --collect</b> - Collect counts<br/>
 <b>-r --refresh</b> - Refresh count, if value exist<br/>
