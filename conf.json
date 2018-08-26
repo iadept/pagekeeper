@@ -1,0 +1,24 @@
+{
+  "database": "archive.db",
+  "printers" : [
+    {
+      "title": "Office 11",
+      "ip" : "192.168.1.10",
+      "description": "HP M603n printer in 11 room",
+      "groups" : ["HP", "Sales"]
+    },
+    {
+      "title": "Office 12",
+      "ip" : "192.168.1.11",
+      "description": "Kyocera P3050dn printer in 12 room",
+      "groups" : ["Kyocera", "Sales"]
+    },
+    {
+      "title": "Reseption",
+      "ip" : "192.168.1.14",
+      "description": "HP P1102w printer in reseption",
+      "groups" : ["HP", "Reception"]
+    }
+
+  ]
+}
