@@ -1,4 +1,6 @@
 # coding: utf-8
+from typing import Optional
+
 from hnmp import SNMP, SNMPError
 import sqlite3
 import argparse
@@ -7,10 +9,9 @@ from datetime import date
 
 
 def intbit(number):
-    s = str(number)
     i = 0
     out = ''
-    for c in s[::-1]:
+    for c in str(number)[::-1]:
         if i == 3:
             i = 0
             out = out + " "
@@ -22,13 +23,13 @@ def intbit(number):
 class Printer:
 
     def __init__(self, configuration):
-        self.title = configuration['title']
-        self.description = configuration['description']
-        self.oid = configuration.get('oid', "1.3.6.1.2.1.43.10.2.1.4.1.1")
-        self.ip = configuration['ip']
-        self.groups = configuration['groups']
+        self.title: str = configuration['title']
+        self.description: str = configuration['description']
+        self.oid: str = configuration.get('oid', "1.3.6.1.2.1.43.10.2.1.4.1.1")
+        self.ip: str = configuration['ip']
+        self.groups: [str] = configuration['groups']
 
-    def get_page_count(self) -> int:
+    def get_page_count(self) -> Optional[int]:
         try:
             snmp = SNMP(self.ip, community="public")
             return snmp.get(self.oid)
@@ -37,11 +38,10 @@ class Printer:
             return None
 
 
-
 class Configuration:
 
     def __init__(self, data):
-        self.database = data['database']
+        self.database: str = data['database']
         self.printers = {}
         for printer_data in data['printers']:
             printer = Printer(printer_data)
@@ -58,7 +58,7 @@ class Database:
     def __create_table(self, name, fields):
         try:
             self.cursor.execute("CREATE TABLE %s (%s)" % (name, fields))
-        except Exception as e:
+        except Exception:
             pass
 
     def __insert(self, name, value):
@@ -129,11 +129,15 @@ def main():
 
         if args.start:
             print("Report:")
+
+            archive = {}
             groups_start = {}
             groups_end = {}
 
-            for name, value in database.select(created=args.start):
+            archive_start = database.select(created=args.start)
+            for name, value in archive_start:
                 printer = configuration.printers[name]
+                archive[name] = value
                 for group in printer.groups:
                     if group not in groups_start:
                         groups_start[group] = 0
@@ -144,19 +148,39 @@ def main():
             else:
                 archive_end = database.select(created=date.today())
 
+
+            total_start = 0
+            total_end = 0
+
             for name, value in archive_end:
+                total_start = total_start + archive[name]
+                total_end = total_end + value
+                diff = value - archive[name]
+                if diff > 0:
+                    print("%20s: %10s (+%i)" % (name, intbit(value), diff))
+                else:
+                    print("%20s: %10s" % (name, intbit(value)))
                 printer = configuration.printers[name]
                 for group in printer.groups:
                     if group not in groups_end:
                         groups_end[group] = 0
                         groups_end[group] = groups_end[group] + value
 
+            total_diff = total_end - total_start
+
+            if total_diff > 0:
+                print("Total page: %s (+%i)" % (intbit(total_end), total_diff))
+            else:
+                print("Total page: %s" % intbit(total_end))
+            print("Groups:")
+
             for group in groups_end:
                 diff = groups_end[group] - groups_start[group]
                 if diff > 0:
-                    print("%20s: %10s (+%s)" %(group, intbit(groups_end[group]), diff))
+                    print("%20s: %10s (+%i)" %(group, intbit(groups_end[group]), diff))
                 else:
                     print("%20s: %10s" % (group, intbit(groups_end[group])))
+
 
 if __name__ == '__main__':
     main()
