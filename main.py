@@ -8,7 +8,7 @@ import json
 from datetime import date
 
 
-def intbit(number):
+def human_out(number):
     i = 0
     out = ''
     for c in str(number)[::-1]:
@@ -58,7 +58,7 @@ class Database:
     def __create_table(self, name, fields):
         try:
             self.cursor.execute("CREATE TABLE %s (%s)" % (name, fields))
-        except Exception:
+        except sqlite3.OperationalError:
             pass
 
     def __insert(self, name, value):
@@ -76,7 +76,8 @@ class Database:
         self.connection.commit()
 
     def get(self, name, created=date.today()):
-        result = self.cursor.execute("SELECT pages FROM archive WHERE created = ? AND name = ?", (created, name)).fetchone()
+        result = self.cursor.execute("SELECT pages FROM archive WHERE created = ? AND name = ?", (created, name))\
+            .fetchone()
         if result:
             return result[0]
         return None
@@ -87,19 +88,22 @@ class Database:
             result.append((row[0], row[1]))
         return result
 
-
     def clear(self):
         self.cursor.execute("DELETE FROM archive")
         self.connection.commit()
+
 
 def main():
     parser = argparse.ArgumentParser(description="Collect and analyze count of printed pages")
     parser.add_argument('start', type=str, nargs="?", help="Start date to analyze")
     parser.add_argument('end', type=str, nargs="?", help="End date of analyze")
-    parser.add_argument('--conf', action='store', dest="conf", default="conf.json", help="Configuration file (default=conf.json)")
+    parser.add_argument('--conf', action='store', dest="conf", default="conf.json",
+                        help="Configuration file (default=conf.json)")
 
-    parser.add_argument('-c', '--collect', action='store_const', const='value-to-store', dest="collect", help="Collect page counts")
-    parser.add_argument('-r', '--refresh', action='store_const', const='value-to-store', dest="refresh", help="Refresh data when collect page")
+    parser.add_argument('-c', '--collect', action='store_const', const='value-to-store', dest="collect",
+                        help="Collect page counts")
+    parser.add_argument('-r', '--refresh', action='store_const', const='value-to-store', dest="refresh",
+                        help="Refresh data when collect page")
     parser.add_argument('--clear', action='store_const', const='value-to-store', dest="clear", help="Clear database")
     args = parser.parse_args()
 
@@ -118,17 +122,17 @@ def main():
             database.clear()
 
         if args.collect:
-            print("Scan printer:")
+            print("+- Scan printer ----------------------------------")
             for printer in configuration.printers.values():
                 count = printer.get_page_count()
                 if count:
                     database.add(printer.title, count, args.refresh)
-                    print("%20s : %10s %s" % (printer.title, intbit(count), printer.description))
+                    print("%20s : %10s %s" % (printer.title, human_out(count), printer.description))
                 else:
-                    print("%20s : No answer" % (printer.title))
+                    print("%20s : No answer" % printer.title)
 
         if args.start:
-            print("Report:")
+            print("+- Report ----------------------------------------")
 
             archive = {}
             groups_start = {}
@@ -148,7 +152,6 @@ def main():
             else:
                 archive_end = database.select(created=date.today())
 
-
             total_start = 0
             total_end = 0
 
@@ -157,29 +160,28 @@ def main():
                 total_end = total_end + value
                 diff = value - archive[name]
                 if diff > 0:
-                    print("%20s: %10s (+%i)" % (name, intbit(value), diff))
+                    print("%20s: %10s (+%i)" % (name, human_out(value), diff))
                 else:
-                    print("%20s: %10s" % (name, intbit(value)))
+                    print("%20s: %10s" % (name, human_out(value)))
                 printer = configuration.printers[name]
                 for group in printer.groups:
                     if group not in groups_end:
                         groups_end[group] = 0
-                        groups_end[group] = groups_end[group] + value
+                    groups_end[group] = groups_end[group] + value
 
             total_diff = total_end - total_start
 
             if total_diff > 0:
-                print("Total page: %s (+%i)" % (intbit(total_end), total_diff))
+                print("Total page count: %s (+%i)" % (human_out(total_end), total_diff))
             else:
-                print("Total page: %s" % intbit(total_end))
-            print("Groups:")
-
+                print("Total page count: %s" % human_out(total_end))
+            print("+- Groups ----------------------------------------")
             for group in groups_end:
                 diff = groups_end[group] - groups_start[group]
                 if diff > 0:
-                    print("%20s: %10s (+%i)" %(group, intbit(groups_end[group]), diff))
+                    print("%20s: %10s (+%i)" % (group, human_out(groups_end[group]), diff))
                 else:
-                    print("%20s: %10s" % (group, intbit(groups_end[group])))
+                    print("%20s: %10s" % (group, human_out(groups_end[group])))
 
 
 if __name__ == '__main__':
